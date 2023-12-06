@@ -9,11 +9,11 @@ fun main() {
 
         val win = line.substring(sep1 + 1, sep2 - 1)
             .trim()
-            .split("\\s+".toRegex())
+            .split(whitespaceRegex)
             .toSet()
         val have = line.substring(sep2 + 1)
             .trim()
-            .split("\\s+".toRegex())
+            .split(whitespaceRegex)
             .toSet()
 
         win.intersect(have).size
