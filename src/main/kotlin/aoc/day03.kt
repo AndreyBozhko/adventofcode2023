@@ -4,19 +4,27 @@ import aoc.Point2D.Companion.at
 
 private val input get() = readLines("03.txt")
 
-private fun Point2D.neighbors(bound: Point2D): List<Point2D> =
-    buildList {
-        add(x-1 at y-1)
-        add(x-1 at y+0)
-        add(x-1 at y+1)
-        add(x+0 at y-1)
-        add(x+0 at y+1)
-        add(x+1 at y-1)
-        add(x+1 at y+0)
-        add(x+1 at y+1)
+private typealias Grid03 = List<String>
+
+private operator fun Grid03.get(p: Point2D): Char = this[p.x][p.y]
+
+private fun Grid03.neighborsOf(position: Point2D): List<Point2D> {
+    val boundX = this.size
+    val boundY = this[0].length
+    val (x, y) = position
+    return buildList {
+        add(x - 1 at y - 1)
+        add(x - 1 at y + 0)
+        add(x - 1 at y + 1)
+        add(x + 0 at y - 1)
+        add(x + 0 at y + 1)
+        add(x + 1 at y - 1)
+        add(x + 1 at y + 0)
+        add(x + 1 at y + 1)
     }.filter { (x, y) ->
-        x >= 0 && x < bound.x && y >= 0 && y < bound.y
+        x in 0..<boundX && y in 0..<boundY
     }
+}
 
 fun main() {
     val grid = input
@@ -39,13 +47,11 @@ fun main() {
         }
     }
 
-    val bounds = grid.size at grid[0].length
-
     // part A
     run {
         val adjacentDigits = symbols
-            .flatMap { position -> position.neighbors(bounds) }
-            .filter { (x, y) -> grid[x][y].isDigit() }
+            .flatMap { position -> grid.neighborsOf(position) }
+            .filter { p -> grid[p].isDigit() }
             .toSet()
 
         val adjacentNumbers = adjacentDigits
@@ -62,8 +68,8 @@ fun main() {
     // part B
     run {
         val adjacentDigits = gears
-            .flatMap { position -> position.neighbors(bounds).map { position to it } }
-            .filter { (_, c) -> grid[c.x][c.y].isDigit() }
+            .flatMap { position -> grid.neighborsOf(position).map { position to it } }
+            .filter { (_, c) -> grid[c].isDigit() }
             .groupBy({ it.first }) { it.second }
 
         val adjacentNumbers = adjacentDigits.values.map { digits ->
