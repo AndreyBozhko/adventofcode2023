@@ -27,9 +27,16 @@ fun reflectionRow(pattern: Array<CharArray>, exclude: Int = -1): Int {
 fun Char.invert() = ('.'.code + '#'.code - this.code).toChar()
 
 fun main() {
-    val patterns = input.joinToString("\n")
-        .split("\n\n")
-        .map { it.split("\n").map(String::toCharArray).toTypedArray() }
+    val patterns = input.fold(mutableListOf(mutableListOf<CharArray>())) { acc, s ->
+        acc.apply {
+            if (s.isEmpty()) {
+                add(mutableListOf())
+            } else {
+                last() += s.toCharArray()
+            }
+        }
+    }
+        .map { it.toTypedArray() }
 
     // part A
     run {
