@@ -19,3 +19,12 @@ inline fun <T> Iterable<T>.productOf(selector: (T) -> Int): Int {
     }
     return result
 }
+
+@JvmName("productOfLong")
+inline fun <T> Array<T>.productOf(selector: (T) -> Long): Long {
+    var result = 1L
+    for (element in this) {
+        result *= selector(element)
+    }
+    return result
+}

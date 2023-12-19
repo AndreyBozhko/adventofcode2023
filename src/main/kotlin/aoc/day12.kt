@@ -2,45 +2,40 @@ package aoc
 
 private val input get() = readLines("12.txt")
 
-fun countArrangements(
-    record: CharArray,
-    groups: IntArray,
-    recordIdx: Int = 0,
-    currentGroup: Int = 0,
-    requiredCharsMatched: Int = 0
-): Long {
-    if (currentGroup == groups.size) {
-        return if (requiredCharsMatched == record.count { it == '#' }) 1 else 0
+fun countArrangements(record: CharArray, groups: IntArray): Long {
+    val initial = mapOf(0 to 1L)
+
+    val arrangements = groups.foldIndexed(initial) { groupIdx, arr, currentGroupLen ->
+        buildMap {
+            val remainingGroups = IntArray(groups.size - groupIdx - 1) { groups[it + groupIdx + 1] }
+            arr.forEach { (recordPos, possibilities) ->
+                for (groupStart in recordPos ..< record.size - remainingGroups.sum() - remainingGroups.size) {
+                    val groupEnd = groupStart + currentGroupLen
+
+                    // group fits inside, and only # or ? inside group
+                    if (groupEnd <= record.size && (groupStart..<groupEnd).none { record[it] == '.' }) {
+
+                        val canBeLastGroup = groupIdx == groups.indices.last
+                                && (groupEnd..<record.size).none { record[it] == '#' }
+                        val hasValidEnd = groupIdx < groups.indices.last
+                                && groupEnd < record.size && record[groupEnd] != '#'
+                        val hasValidStart = groupIdx == 0
+                                || record[groupStart - 1] != '#'
+                        if (canBeLastGroup || (hasValidStart && hasValidEnd)) {
+                            this[groupEnd + 1] = possibilities + (this[groupEnd + 1] ?: 0)
+                        }
+                    }
+
+                    // cannot move past the # since all must be accounted for
+                    if (record[groupStart] == '#') {
+                        break
+                    }
+                }
+            }
+        }
     }
 
-    val rest = (currentGroup ..< groups.size).sumOf { groups[it] + 1 } - 1
-
-    val currentGroupSize = groups[currentGroup]
-
-    var total = 0L
-    for (i in recordIdx .. record.size-rest) {
-        val currentGroupRange = i ..< i+currentGroupSize
-        if (currentGroupRange.any { record[it] == '.' }) continue
-
-        val beforeGroup = currentGroupRange.first - 1
-        if (beforeGroup >= 0 && record[beforeGroup] == '#') continue
-
-        val afterGroup = currentGroupRange.last + 1
-        if (afterGroup < record.size && record[afterGroup] == '#') continue
-
-//        if (currentGroup == 0 && (0..i-2).any { record[it] == '#' }) continue
-
-        val matched = currentGroupRange.count { record[it] == '#' }
-
-        total += countArrangements(
-            record,
-            groups,
-            currentGroupRange.last + 2,
-            currentGroup + 1,
-            requiredCharsMatched + matched
-        )
-    }
-    return total
+    return arrangements.values.sum()
 }
 
 fun main() {
@@ -62,13 +57,11 @@ fun main() {
 
     // part B
     run {
-//        var i = 0
-//        val result = data.sumOf { (r, g) ->
-//            i += 1
-//            val rr = "$r?$r?$r?$r?$r"
-//            val gg = (1..5).flatMap { g.toList() }.toIntArray()
-//            countArrangements(rr.toCharArray(), gg)
-//        }
-//        println(result)
+        val result = data.sumOf { (r, g) ->
+            val rr = "$r?$r?$r?$r?$r"
+            val gg = (1..5).flatMap { g.toList() }.toIntArray()
+            countArrangements(rr.toCharArray(), gg)
+        }
+        println(result)
     }
 }

@@ -3,13 +3,11 @@ package aoc
 private val input = readLines("19.txt")
 
 private typealias Part = IntArray
+private typealias PartRange = Array<IntRange>
 
-private operator fun Part.get(c: Char): Int = when (c) {
-    'x' -> this[0]
-    'm' -> this[1]
-    'a' -> this[2]
-    else -> this[3]
-}
+private operator fun Part.get(c: Char): Int = get("xmas".indexOf(c))
+private operator fun PartRange.get(c: Char): IntRange = get("xmas".indexOf(c))
+private operator fun PartRange.set(c: Char, value: IntRange) = set("xmas".indexOf(c), value)
 
 private fun IntRange.sizeAsLong() = (last - first + 1).toLong()
 
@@ -29,6 +27,26 @@ data class Rule(
         }
     }
 
+    operator fun invoke(range: PartRange): Pair<PartRange?, PartRange?> {
+        val categoryRange = range[category]
+        return if (operation == '>' && categoryRange.first > threshold) {
+            range to null
+        } else if (operation == '<' && categoryRange.last < threshold) {
+            range to null
+        } else {
+            val satisfied = range.clone()
+            val passthrough = range.clone()
+            if (operation == '>') {
+                satisfied[category] = threshold+1..satisfied[category].last
+                passthrough[category] = passthrough[category].first..threshold
+            } else {
+                satisfied[category] = satisfied[category].first..<threshold
+                passthrough[category] = threshold..passthrough[category].last
+            }
+            satisfied to passthrough
+        }
+    }
+
     override fun toString() = "$category$operation$threshold:$target"
 
     companion object {
@@ -45,6 +63,16 @@ data class Workflow(val name: String, val rules: List<Rule>, val default: String
     operator fun invoke(part: Part): String {
         return rules.firstNotNullOfOrNull { it(part) } ?: default
     }
+
+    operator fun invoke(range: PartRange) = mutableListOf<Pair<String, PartRange>>().apply {
+        var prev = range
+        for (rule in rules) {
+            val (satisfied, passthrough) = rule(prev)
+            satisfied?.let { this += rule.target to it }
+            passthrough?.let { prev = it } ?: return@apply
+        }
+        this += default to prev
+    }
 }
 
 class Executor(branches: List<Workflow>) {
@@ -57,6 +85,30 @@ class Executor(branches: List<Workflow>) {
             cur = wf(part)
         }
         return cur == "A"
+    }
+
+    fun combinations(range: PartRange): Long {
+        var total = 0L
+        val queue = ArrayDeque<Pair<String, PartRange>>()
+        queue += "in" to range
+
+        while (queue.isNotEmpty()) {
+            val (cur, rng) = queue.removeFirst()
+            when (cur) {
+                "A" -> {
+                    total += rng.productOf { it.sizeAsLong() }
+                }
+                "R" -> {
+                    // do nothing
+                }
+                else -> {
+                    val wf = workflowMap[cur]!!
+                    val splits = wf(rng)
+                    queue += splits
+                }
+            }
+        }
+        return total
     }
 }
 
@@ -91,43 +143,8 @@ fun main() {
 
     // part B
     run {
-//        val boundaries = "xmas".associateWith { c ->
-//            workflows.flatMap { w ->
-//                w.rules.filter { it.category == c }.map { it.threshold }.toMutableList()
-//            }.toMutableList()
-//        }
-//        boundaries.forEach { (_, ml) ->
-//            ml += 1
-//            ml += 4000
-//            ml.sort()
-//        }
-//
-//        fun Iterable<Int>.generateRanges(): Sequence<IntRange> = sequence {
-//            var prev: Int? = null
-//            for (element in this@generateRanges) {
-//                prev?.let {
-//                    yield(it+1..<element)
-//                }
-//                yield(element..element)
-//                prev = element
-//            }
-//        }
-//
-//        var total = 0L
-//        println(boundaries['x']!!.size)
-//        for (dX in boundaries['x']!!.generateRanges()) {
-//            println(dX)
-//            for (dM in boundaries['m']!!.generateRanges()) {
-//                for (dA in boundaries['a']!!.generateRanges()) {
-//                    for (dS in boundaries['s']!!.generateRanges()) {
-//                        val part = intArrayOf(dX.first, dM.first, dA.first, dS.first)
-//                        if (executor.process(part)) {
-//                            total += dX.sizeAsLong() * dM.sizeAsLong() * dA.sizeAsLong() * dS.sizeAsLong()
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//        println(total)
+        val ranges = Array(4) { 1..4000 }
+        val result = executor.combinations(ranges)
+        println(result)
     }
 }
