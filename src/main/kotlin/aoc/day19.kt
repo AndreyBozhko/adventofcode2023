@@ -64,12 +64,12 @@ data class Workflow(val name: String, val rules: List<Rule>, val default: String
         return rules.firstNotNullOfOrNull { it(part) } ?: default
     }
 
-    operator fun invoke(range: PartRange) = mutableListOf<Pair<String, PartRange>>().apply {
+    operator fun invoke(range: PartRange) = buildList {
         var prev = range
         for (rule in rules) {
             val (satisfied, passthrough) = rule(prev)
             satisfied?.let { this += rule.target to it }
-            passthrough?.let { prev = it } ?: return@apply
+            passthrough?.let { prev = it } ?: return@buildList
         }
         this += default to prev
     }
