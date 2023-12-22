@@ -33,17 +33,16 @@ fun main() {
 
     // part A
     run {
-        val current = mutableSetOf(start)
-        val next = mutableSetOf<Point2D>()
+        var current = mutableSetOf(start)
+        var next = mutableSetOf<Point2D>()
 
         for (step in 1..64) {
             for (cur in current) {
                 next += grid.neighborsOf(cur, repeat = false)
             }
 
-            current.clear()
-            current += next
-            next.clear()
+            current = next
+            next = mutableSetOf()
         }
 
         val result = current.size
@@ -54,14 +53,13 @@ fun main() {
     run {
         require(grid.size == grid[0].size)
         require(grid.size % 2 == 1)
+        require(start == Point2D(grid.size / 2, grid.size / 2))
 
         val n = grid.size
         val maxStep = 26_501_365
 
-        val preCompute = 10 * n
-        val progress = mutableMapOf(
-            start to LongArray(preCompute + 1) { if (it == 0) 1 else 0 }
-        )
+        val preCompute = min(maxStep, 10 * n)
+        val progress = LongArray(preCompute + 1).apply { this[0] = 1 }
 
         run {
             var current = mutableSetOf(start)
@@ -73,12 +71,7 @@ fun main() {
                     next += grid.neighborsOf(cur, repeat = true).filter { it !in prev }
                 }
 
-                next.forEach { p ->
-                    val adjusted = Point2D((p.x % n + n) % n, (p.y % n + n) % n)
-                    val l = progress[adjusted] ?: LongArray(preCompute + 1)
-                    l[step] += 1L
-                    progress[adjusted] = l
-                }
+                progress[step] = next.size.toLong()
 
                 prev = current
                 current = next
@@ -87,35 +80,33 @@ fun main() {
         }
 
         // progress is periodic
-        val increments = progress.mapValues { (_, pointProgress) ->
-            val pos = pointProgress.size - 4 * n
-            LongArray(2 * n) { pointProgress[it + pos + 2 * n] - pointProgress[it + pos] }
+        val increments = LongArray(2 * n) {
+            val pos = progress.size - 4 * n
+            progress[it + pos + 2 * n] - progress[it + pos]
         }
 
-        val offsets = progress.mapValues { (_, v) ->
-            val pos = v.size - 2 * n
-            LongArray(2 * n) { v[it + pos] }
+        val offsets = LongArray(2 * n) {
+            val pos = progress.size - 2 * n
+            progress[it + pos]
         }
 
         // compute answer
         if (maxStep <= preCompute) {
 
-            val result = ((maxStep and 1)..maxStep step 2).sumOf { st ->
-                progress.values.sumOf { it[st] }
-            }
+            val result = ((maxStep and 1)..maxStep step 2)
+                .sumOf { progress[it] }
             println(result)
 
         } else {
 
-            val resultInitial = ((maxStep and 1)..preCompute step 2).sumOf { st ->
-                progress.values.sumOf { it[st] }
-            }
+            val resultInitial = ((maxStep and 1)..preCompute step 2)
+                .sumOf { progress[it] }
 
-            val resultRemaining = offsets.keys.sumOf { p ->
+            val resultRemaining =
                 (0..<2 * n).sumOf { idx ->
                     val currentStep = preCompute + idx + 1
-                    val offset = offsets[p]!![idx]
-                    val increment = increments[p]!![idx]
+                    val offset = offsets[idx]
+                    val increment = increments[idx]
 
                     if (currentStep and 1 != maxStep and 1) {
                         0L
@@ -124,7 +115,7 @@ fun main() {
                         repeats * offset + repeats * (repeats + 1) / 2 * increment
                     }
                 }
-            }
+
 
             val result = resultInitial + resultRemaining
             println(result)
