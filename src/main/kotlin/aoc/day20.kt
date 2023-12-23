@@ -3,36 +3,34 @@ package aoc
 private val input = readLines("20.txt")
 
 enum class Pulse {
-    HIGH, LOW;
+    LOW, HIGH;
 
     fun invert() = if (this == LOW) HIGH else LOW
 }
 
-data class Signal(val src: String?, val rcv: String, val pulse: Pulse)
-
-class Interrupted : Exception()
+data class Signal(val src: String?, val rcv: String, val pulse: Pulse) {
+    constructor(src: Module?, rcv: Module, pulse: Pulse) : this(src?.name, rcv.name, pulse)
+}
 
 class ModuleCommunication(private val modules: Map<String, Module>) {
     private val workQueue = ArrayDeque<Signal>()
-    private val sent = IntArray(2)
 
-    val stats: Long
-        get() = sent[0].toLong() * sent[1].toLong()
+    init {
+        modules.forEach { (_, m) -> m.reset() }
+    }
 
     fun process(signal: Signal) {
         workQueue += signal
     }
 
-    fun start(waitFor: String? = null) {
+    fun runUntilComplete(observer: ((Signal) -> Unit)? = null) {
         while (workQueue.isNotEmpty()) {
-            val (src, rcv, p) = workQueue.removeFirst()
-            if (rcv == waitFor && p == Pulse.LOW) {
-                throw Interrupted()
-            }
+            val signal = workQueue.removeFirst()
+            observer?.invoke(signal)
 
+            val (src, rcv, p) = signal
             val srcM = src?.let { modules[it]!! }
             val rcvM = modules[rcv]!!
-            sent[p.ordinal] += 1
             rcvM.process(srcM, p, this)
         }
     }
@@ -40,6 +38,8 @@ class ModuleCommunication(private val modules: Map<String, Module>) {
 }
 
 sealed class Module(private val tp: String, val name: String) {
+    open fun reset() {}
+
     internal val dest: MutableList<Module> = mutableListOf()
 
     fun addDest(modules: Iterable<Module>) = dest.addAll(modules)
@@ -75,7 +75,8 @@ sealed class Module(private val tp: String, val name: String) {
 
             tmp.forEach { (nm, d) ->
                 val dest = d.map { n ->
-                    modules[n] ?: Output(n).also { modules[n] = it } }
+                    modules[n] ?: Output(n).also { modules[n] = it }
+                }
                 val n = nm.trim('%', '&')
                 modules[n]!!.addDest(dest)
             }
@@ -89,67 +90,95 @@ sealed class Module(private val tp: String, val name: String) {
             return modules
         }
     }
-}
 
-class Broadcaster : Module("", "broadcaster") {
-    override fun pulseToSend(upstream: Module?, pulse: Pulse) = pulse
-}
 
-class Output(name: String) : Module("", name) {
-    override fun pulseToSend(upstream: Module?, pulse: Pulse) = null
-}
-
-class Conjunction(name: String) : Module("&", name) {
-    private val memory: MutableMap<String, Pulse> = mutableMapOf()
-
-    fun registerInput(module: Module) {
-        memory[module.name] = Pulse.LOW
+    class Broadcaster : Module("", "broadcaster") {
+        override fun pulseToSend(upstream: Module?, pulse: Pulse) = pulse
     }
 
-    override fun pulseToSend(upstream: Module?, pulse: Pulse): Pulse {
-        memory[upstream!!.name] = pulse
-        return if (memory.values.all { it == Pulse.HIGH }) Pulse.LOW else Pulse.HIGH
+    class Output(name: String) : Module("", name) {
+        override fun pulseToSend(upstream: Module?, pulse: Pulse) = null
     }
-}
 
-class FlipFlop(name: String) : Module("%", name) {
-    private var memory = Pulse.LOW
-    override fun pulseToSend(upstream: Module?, pulse: Pulse) = when (pulse) {
-        Pulse.HIGH -> null
-        Pulse.LOW -> {
-            memory = memory.invert()
-            memory
+    class Conjunction(name: String) : Module("&", name) {
+        private val memory: MutableMap<String, Pulse> = mutableMapOf()
+
+        fun registerInput(module: Module) {
+            memory[module.name] = Pulse.LOW
+        }
+
+        override fun reset() {
+            memory.replaceAll { _, _ -> Pulse.LOW }
+        }
+
+        override fun pulseToSend(upstream: Module?, pulse: Pulse): Pulse {
+            memory[upstream!!.name] = pulse
+            return if (memory.values.all { it == Pulse.HIGH }) Pulse.LOW else Pulse.HIGH
+        }
+    }
+
+    class FlipFlop(name: String) : Module("%", name) {
+        private var memory = Pulse.LOW
+
+        override fun reset() {
+            memory = Pulse.LOW
+        }
+
+        override fun pulseToSend(upstream: Module?, pulse: Pulse) = when (pulse) {
+            Pulse.HIGH -> null
+            Pulse.LOW -> {
+                memory = memory.invert()
+                memory
+            }
         }
     }
 }
-
 
 fun main() {
     val modules = Module.parse(input)
+    val buttonPress = Signal(null, "broadcaster", Pulse.LOW)
 
     // part A
     run {
+        val stats = LongArray(2)
+
         val comm = ModuleCommunication(modules)
         for (i in 1..1000) {
-            comm.process(Signal(null, "broadcaster", Pulse.LOW))
-            comm.start()
+            comm.process(buttonPress)
+            comm.runUntilComplete {
+                stats[it.pulse.ordinal] += 1L
+            }
         }
-        println(comm.stats)
+
+        val result = stats[0] * stats[1]
+        println(result)
     }
 
     // part B
     run {
-        // TODO FIXME
-        val comm = ModuleCommunication(modules)
-        var i = 0
-        try {
-            while (true) {
-                i += 1
-                comm.process(Signal(null, "broadcaster", Pulse.LOW))
-                comm.start(waitFor = "rx")
+        val target = modules["rx"]!!
+
+        val upstream1 = modules.values.single { target in it.dest }
+        require(upstream1 is Module.Conjunction)
+
+        val upstream2 = modules.values.filter { upstream1 in it.dest }
+
+        val result = upstream2.productOf { u2 ->
+            val signalToIntercept = Signal(u2, upstream1, Pulse.HIGH)
+            val comm = ModuleCommunication(modules)
+            for (i in 1..Int.MAX_VALUE) {
+                try {
+                    comm.process(buttonPress)
+                    comm.runUntilComplete {
+                        if (it == signalToIntercept) throw Exception()
+                    }
+                } catch (e: Exception) {
+                    return@productOf i.toLong()
+                }
             }
-        } catch (e: Interrupted) {
-            println(i)
+            0L
         }
+
+        println(result)
     }
 }
