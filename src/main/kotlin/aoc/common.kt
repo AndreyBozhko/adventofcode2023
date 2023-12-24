@@ -7,3 +7,5 @@ data class Point2D(val x: Int, val y: Int) {
         infix fun Int.at(other: Int) = Point2D(this, other)
     }
 }
+
+data class Point3D(val x: Int, val y: Int, val z: Int)
