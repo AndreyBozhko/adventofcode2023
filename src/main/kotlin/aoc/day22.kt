@@ -18,7 +18,7 @@ data class Brick(val first: Point3D, val second: Point3D) {
 
     override fun toString() = "Brick(${first.x},${first.y},${first.z}~${second.x},${second.y},${second.z})"
 
-    fun fall(dist: Int) = copy(first = first.copy(z = first.z - dist), second = second.copy(z = second.z - dist))
+    fun fall(dist: Long) = copy(first = first.copy(z = first.z - dist), second = second.copy(z = second.z - dist))
 
     fun supports(other: Brick): Boolean {
         return if (this == other) {
@@ -68,8 +68,8 @@ data class Brick(val first: Point3D, val second: Point3D) {
 fun main() {
     val bricks = input.map { line ->
         val parts = line.split('~')
-        val pos1 = parts[0].split(',').map { it.toInt() }
-        val pos2 = parts[1].split(',').map { it.toInt() }
+        val pos1 = parts[0].split(',').map { it.toLong() }
+        val pos2 = parts[1].split(',').map { it.toLong() }
 
         Brick(
             Point3D(pos1[0], pos1[1], pos1[2]),

@@ -8,4 +8,4 @@ data class Point2D(val x: Int, val y: Int) {
     }
 }
 
-data class Point3D(val x: Int, val y: Int, val z: Int)
+data class Point3D(val x: Long, val y: Long, val z: Long)
