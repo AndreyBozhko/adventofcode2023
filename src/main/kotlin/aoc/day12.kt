@@ -7,7 +7,7 @@ fun countArrangements(record: CharArray, groups: IntArray): Long {
 
     val arrangements = groups.foldIndexed(initial) { groupIdx, arr, currentGroupLen ->
         buildMap {
-            val remainingGroups = IntArray(groups.size - groupIdx - 1) { groups[it + groupIdx + 1] }
+            val remainingGroups = groups.sliceArray(groupIdx + 1 ..< groups.size)
             arr.forEach { (recordPos, possibilities) ->
                 for (groupStart in recordPos ..< record.size - remainingGroups.sum() - remainingGroups.size) {
                     val groupEnd = groupStart + currentGroupLen

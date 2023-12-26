@@ -85,9 +85,8 @@ fun main() {
             progress[it + pos + 2 * n] - progress[it + pos]
         }
 
-        val offsets = LongArray(2 * n) {
-            val pos = progress.size - 2 * n
-            progress[it + pos]
+        val offsets = with(progress) {
+            sliceArray(size - 2 * n ..< size)
         }
 
         // compute answer
